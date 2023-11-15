@@ -8,15 +8,16 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 
 @WebServlet(name = "printApplicants", value = "/print-applicants")
 public class PrintApplicantsServlet extends HttpServlet {
-    private static final Logger logger = Logger.getLogger(PrintApplicantsServlet.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(PrintApplicantsServlet.class);
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -32,9 +33,10 @@ public class PrintApplicantsServlet extends HttpServlet {
             logger.info("ApplicantWithResumes list has been passed to print-applicants-table.jsp\n");
         } catch (Exception e) {
             // Handle exceptions (e.g., database-related errors)
-            logger.log(Level.SEVERE, "Error retrieving applicants", e);
+            logger.error(e.getMessage(), e);
             // Redirect to an error page using an absolute path
-            resp.sendRedirect(req.getContextPath() + "/errorPage.jsp");
+            requestDispatcher = req.getRequestDispatcher("/errorPage.jsp");
+            requestDispatcher.forward(req, resp);
             return;
         }
         requestDispatcher.forward(req, resp);

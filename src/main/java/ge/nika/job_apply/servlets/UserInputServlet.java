@@ -146,7 +146,6 @@ public class UserInputServlet extends HttpServlet {
 //        If user inputs are all valid then applicant object will be initialized and values will be passed
         if (!userInputsAreValid) {
             requestDispatcher.forward(req, resp);
-//            return;
         } else {
 
             //Creating object of Applicant and passing applicant information to our Applicant class
@@ -154,23 +153,21 @@ public class UserInputServlet extends HttpServlet {
                     previousCompany, previousJobPosition, email, phoneNumber);
             //checking what we have passed
             logger.info("Applicant Data = " + applicant);
-            logger.info("Resume Data = " + resume+"\n");
+            logger.info("Resume Data = " + resume + "\n");
             //Invoking writeApplicantAndResumeToDataBase method, it returns number of rows that has been affected in database
             //generally it should return 2 (1 row in applicant table, and 1 row in resume table)
             if (DatabaseUtil.writeApplicantAndResumeToDB(applicant, resume) > 0) {
-                //Saving uploaded resume in file directory(TODO:it should be saved on server, tomcat's folder)
+//              Saving uploaded resume in file directory(TODO:it should be saved on server, tomcat's folder)
                 resume.saveResumeFile();
-                //req.setAttribute("success", "აპლიკაცია წარმატებით გაიგზავნა!");
+//              Redirect to index.jsp with a success parameter set to true
                 resp.sendRedirect(req.getContextPath() + "/index.jsp?success=true");
-//                return;
             } else {
+//              Redirect to index.jsp with a success parameter set to false
                 resp.sendRedirect(req.getContextPath() + "/index.jsp?success=false");
-//                return;
             }
 
         }
 
-//        requestDispatcher.forward(req, resp);
     }
 
     //string inputs validation
@@ -185,7 +182,10 @@ public class UserInputServlet extends HttpServlet {
         return !matcher.matches();
     }
 
-    //    Checking input Strings sizes, since they have restrictions in database
+    /**
+     *
+     * Checking input Strings sizes, since they have restrictions in database
+     */
     public boolean isValidJobCategorySize(String stringInput) {
         return stringInput.length() <= 150;
     }

@@ -7,6 +7,8 @@ We have validation methods for these attributes, they are invoked in UserInputSe
 package ge.nika.job_apply.model;
 
 import jakarta.servlet.http.Part;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,6 +21,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class Resume {
+    private static final Logger logger = LoggerFactory.getLogger(Resume.class);
     private Part filePart;
 
     //Resume attributes(meta-data of resume/cv);
@@ -122,8 +125,9 @@ public class Resume {
                     outputStream.write(buffer, 0, read);
                 }
             }
+            logger.info("Resume file saved successfully: {}", outputFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error saving resume file: {}", e.getMessage(), e);
         }
     }
 

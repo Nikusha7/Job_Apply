@@ -5,15 +5,16 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.logging.Logger;
 
 @WebServlet(name = "downloadResumeServlet", value = "/download-resume")
 public class DownloadResumeServlet extends HttpServlet {
-    private static final Logger logger = Logger.getLogger(DownloadResumeServlet.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(DownloadResumeServlet.class);
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -30,7 +31,7 @@ public class DownloadResumeServlet extends HttpServlet {
              */
             // Get the file path (adjust this based on your project structure)
             String filePath = "D:/IntelliJ Projects/Job_Apply/src/main/files/" + fileName;
-            logger.info("File Path: " + filePath +  ", realpath: " + getServletContext().getRealPath("/main/files/" + fileName));
+            logger.info("File Path: " + filePath + ", realpath: " + getServletContext().getRealPath("/main/files/" + fileName));
 
             // Set the content type and length
             resp.setContentType(getContentType(fileType));
@@ -53,10 +54,12 @@ public class DownloadResumeServlet extends HttpServlet {
                     os.write(buffer, 0, bytesRead);
                 }
             }
-            logger.info("Successfully Downloaded: "+"'"+fileName+"'");
+            logger.info("Successfully Downloaded: '{}' ", fileName);
         } catch (Exception e) {
-            e.printStackTrace(); // Add proper logging in a production environment
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error downloading resume");
+//            Proper logging for a production environment
+            logger.error(e.getMessage(), e);
+//            Redirect the client to the error page
+            resp.sendRedirect(req.getContextPath() + "/errorPage.jsp");
         }
 
     }

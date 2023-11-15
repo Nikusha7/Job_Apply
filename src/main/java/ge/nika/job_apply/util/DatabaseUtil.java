@@ -3,6 +3,8 @@ package ge.nika.job_apply.util;
 import ge.nika.job_apply.model.Applicant;
 import ge.nika.job_apply.model.ApplicantsWithResumes;
 import ge.nika.job_apply.model.Resume;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,65 +12,66 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Logger;
+
 
 public class DatabaseUtil {
-    private static final Logger logger = Logger.getLogger(DatabaseUtil.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseUtil.class);
 
     //writeApplicantAndResumeToDB writes applicants data and resume meta-data to database
     public static int writeApplicantAndResumeToDB(Applicant applicant, Resume resume) {
-
-        //creating DatabaseProperties object to get real values(url, username, password)
-        //readDataBaseProperties() returns-> new DatabaseProperties(url, username, password)
-        DatabaseProperties databaseProperties = readDataBaseProperties();
-
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
         boolean transactionSuccess = false;// A flag to track transaction success
         int rowsAffected = 0;
-        try (Connection connection = DriverManager.getConnection(
-                databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword())
-        ) {
+        try {
+            //creating DatabaseProperties object to get real values(url, username, password)
+            //readDataBaseProperties() returns-> new DatabaseProperties(url, username, password)
+            DatabaseProperties databaseProperties = readDataBaseProperties();
 
-            connection.setAutoCommit(false); // Start a transaction
+            loadMySQLJdbcDriver();
 
-            try {
+            try (Connection connection = DriverManager.getConnection(
+                    databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword())
+            ) {
+
+                connection.setAutoCommit(false); // Start a transaction
+
+                try {
                 /*
                 IN Database are 2 tables "applicant" and "resume"
                 writeApplicant writes applicant to db and returns number of rows affected in applicant table
                 writeResume writes resume meta-data to db and returns number of rows affected in resume table
                 In this case, either both will be executed or neither. (transaction roll back will happen if one of them is unsuccessful)
                 */
-                int applicantRowsAffected = writeApplicant(connection, applicant);
-                int resumeRowsAffected = writeResume(connection, resume);
+                    int applicantRowsAffected = writeApplicant(connection, applicant);
+                    int resumeRowsAffected = writeResume(connection, resume);
 
-                if (applicantRowsAffected > 0 && resumeRowsAffected > 0) {
-                    connection.commit(); // Commit the transaction if both operations were successful
-                    transactionSuccess = true;
-                    rowsAffected = applicantRowsAffected + resumeRowsAffected;
-                } else {
-                    connection.rollback(); // Rollback the transaction if any operation failed
+                    if (applicantRowsAffected > 0 && resumeRowsAffected > 0) {
+                        connection.commit(); // Commit the transaction if both operations were successful
+                        transactionSuccess = true;
+                        rowsAffected = applicantRowsAffected + resumeRowsAffected;
+                        logger.info("{} Rows affected in JobApplyWebAppDB. Transaction committed.", rowsAffected);
+                    } else {
+                        connection.rollback(); // Rollback the transaction if any operation failed
+                        logger.warn("Transaction rolled back. Either applicant data or resume metadata was not written to the database.");
+                    }
+                } catch (SQLException e) {
+                    connection.rollback(); // Rollback if an exception occurred within the transaction
+                    logger.error("Error within transaction: {}", e.getMessage(), e);
                 }
             } catch (SQLException e) {
-                connection.rollback(); // Rollback if an exception occurred within the transaction
-                e.printStackTrace();
+                logger.error("Error establishing connection: {}", e.getMessage(), e);
             }
 
-            logger.info(rowsAffected + " Rows has been affected in JobApplyWebAppDB"+"\n");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+            if (!transactionSuccess) {
+                logger.warn("Transaction failed; neither applicant data nor resume metadata was written to the database.");
+            }
 
-        if (!transactionSuccess) {
-            logger.info("Transaction failed; neither applicant data nor resume metadata was written to the database.");
+        } catch (RuntimeException e) {
+            // Handle exceptions thrown by readDataBaseProperties()
+            logger.error("Error loading database properties: {}", e.getMessage(), e);
         }
-
         return rowsAffected;
     }
+
 
     //writes applicant data to the database
     private static int writeApplicant(Connection conn, Applicant applicant) {
@@ -88,10 +91,9 @@ public class DatabaseUtil {
 
             rowsAffected = preparedStatement.executeUpdate();
 
-            logger.info(rowsAffected + " Row has been affected in applicant table, " + "Applicant data written in db: " + applicant);
+            logger.info("{} Row(s) affected in applicant table. Applicant data written in db: {}. Operation: INSERT.", rowsAffected, applicant);
         } catch (SQLException e) {
-            //if there is problem writing applicant data into database stacktrace will be printed
-            e.printStackTrace();
+            logger.error("Error writing applicant data into the database: {}", e.getMessage(), e);
         }
 
         return rowsAffected;
@@ -104,20 +106,17 @@ public class DatabaseUtil {
         //this generated applicant_id will be resume_id, it ensures that the "resume_id" in the "resume" table
         // is associated with an existing "applicant_id" from the "applicant" table.
         int resumeId = 0;
-        try {
-            String getApplicantIdQuery = "SELECT applicant_id FROM applicant";
-            Statement statement = conn.createStatement();
-
-            ResultSet applicantId = statement.executeQuery(getApplicantIdQuery);
+        String getApplicantIdQuery = "SELECT applicant_id FROM applicant";
+        try (Statement statement = conn.createStatement();
+             ResultSet applicantId = statement.executeQuery(getApplicantIdQuery)) {
 
             while (applicantId.next()) {
                 resumeId = applicantId.getInt("applicant_id");
             }
 //            setting same id as applicant_id has generated in db
             resume.setResumeId(resumeId);
-            statement.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error retrieving applicant ID in writeResume(): {}", e.getMessage(), e);
         }
 
         int rowsAffected = 0;
@@ -133,103 +132,113 @@ public class DatabaseUtil {
 
             rowsAffected = preparedStatement.executeUpdate();
 
-            logger.info(rowsAffected + " Row has been affected in resume table, " + "Resume meta-data written in db: " +  resume + " Applicant_id=" + resumeId);
+            logger.info("{} Row(s) affected in resume table. Resume meta-data written in db: {}. Operation: INSERT. Applicant_id: {}", rowsAffected, resume, resumeId);
         } catch (SQLException e) {
-            //if there is problem writing resume meta-data into database stacktrace will be printed
-            e.printStackTrace();
+            logger.error("Error writing resume meta-data into the database: {}", e.getMessage(), e);
         }
         return rowsAffected;
     }
 
     public static List<ApplicantsWithResumes> getApplicantsAndResumes() {
-        //creating DatabaseProperties object to get real values(url, username, password)
-        //readDataBaseProperties() -> new DatabaseProperties(url, username, password)
-        DatabaseProperties databaseProperties = readDataBaseProperties();
-
-
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        // Establish a database connection using the provided database properties.
-        // since it's written in try it will be closed automatically
-
         List<ApplicantsWithResumes> applicantsWithResumesList = new ArrayList<>();
+        try {
+            //creating DatabaseProperties object to get real values(url, username, password)
+            //readDataBaseProperties() -> new DatabaseProperties(url, username, password)
+            DatabaseProperties databaseProperties = readDataBaseProperties();
 
-        try (Connection connection = DriverManager.getConnection(
-                databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword())
-        ) {
-            //mostly statement is used for reading queries(without parameters)
-            // Create a Statement for executing SQL queries within the database connection.
-            try (Statement statement = connection.createStatement()) {
+            loadMySQLJdbcDriver();
+
+            // Establish a database connection using the provided database properties.
+            // since it's written in try it will be closed automatically
+            try (Connection connection = DriverManager.getConnection(
+                    databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword());
+                 Statement statement = connection.createStatement()) {
 
                 //Execute a SQL query to select all applicants and resumes from the database, ResultSet contains the rows and columns of data
-                ResultSet allApplicantAndResume = statement.executeQuery("SELECT * FROM applicant JOIN resume ON applicant.applicant_id = resume.resume_id");
+                String sqlQuery = "SELECT * FROM applicant JOIN resume ON applicant.applicant_id = resume.resume_id";
+                try (ResultSet allApplicantAndResume = statement.executeQuery(sqlQuery)) {
 
-                // Process the result set to retrieve applicant and resume information.
-                while (allApplicantAndResume.next()) {
-                    ApplicantsWithResumes applicantsWithResumes = new ApplicantsWithResumes();
+                    // Process the result set to retrieve applicant and resume information.
+                    while (allApplicantAndResume.next()) {
+                        ApplicantsWithResumes applicantsWithResumes = new ApplicantsWithResumes();
 
-                    // Set applicant details
-                    applicantsWithResumes.getApplicants().setId(allApplicantAndResume.getInt("applicant_id"));
-                    applicantsWithResumes.getApplicants().setJobCategory(allApplicantAndResume.getString("job_category"));
-                    applicantsWithResumes.getApplicants().setName(allApplicantAndResume.getString("applicant_name"));
-                    applicantsWithResumes.getApplicants().setAddress(allApplicantAndResume.getString("address"));
-                    applicantsWithResumes.getApplicants().setPreviousOrCurrentCompany(allApplicantAndResume.getString("previous_company"));
-                    applicantsWithResumes.getApplicants().setPreviousOrCurrentPosition(allApplicantAndResume.getString("previous_position"));
-                    applicantsWithResumes.getApplicants().setEmail(allApplicantAndResume.getString("email"));
-                    applicantsWithResumes.getApplicants().setPhoneNumber(allApplicantAndResume.getString("phone_number"));
-                    applicantsWithResumes.getApplicants().setDateOfSubmission(allApplicantAndResume.getDate("submission_datetime"));
+                        // Set applicant details
+                        applicantsWithResumes.getApplicants().setId(allApplicantAndResume.getInt("applicant_id"));
+                        applicantsWithResumes.getApplicants().setJobCategory(allApplicantAndResume.getString("job_category"));
+                        applicantsWithResumes.getApplicants().setName(allApplicantAndResume.getString("applicant_name"));
+                        applicantsWithResumes.getApplicants().setAddress(allApplicantAndResume.getString("address"));
+                        applicantsWithResumes.getApplicants().setPreviousOrCurrentCompany(allApplicantAndResume.getString("previous_company"));
+                        applicantsWithResumes.getApplicants().setPreviousOrCurrentPosition(allApplicantAndResume.getString("previous_position"));
+                        applicantsWithResumes.getApplicants().setEmail(allApplicantAndResume.getString("email"));
+                        applicantsWithResumes.getApplicants().setPhoneNumber(allApplicantAndResume.getString("phone_number"));
+                        applicantsWithResumes.getApplicants().setDateOfSubmission(allApplicantAndResume.getDate("submission_datetime"));
 
-                    // Set resume details
-                    applicantsWithResumes.getResumes().setResumeId(allApplicantAndResume.getInt("resume_id"));
-                    applicantsWithResumes.getResumes().setResumeFileName(allApplicantAndResume.getString("resume_name"));
-                    applicantsWithResumes.getResumes().setResumeFileDirectoryPath(allApplicantAndResume.getString("resume_directory_path"));
-                    applicantsWithResumes.getResumes().setResumeFileExtension(allApplicantAndResume.getString("resume_document_extension"));
-                    applicantsWithResumes.getResumes().setResumeFileSize(allApplicantAndResume.getDouble("resume_size"));
+                        // Set resume details
+                        applicantsWithResumes.getResumes().setResumeId(allApplicantAndResume.getInt("resume_id"));
+                        applicantsWithResumes.getResumes().setResumeFileName(allApplicantAndResume.getString("resume_name"));
+                        applicantsWithResumes.getResumes().setResumeFileDirectoryPath(allApplicantAndResume.getString("resume_directory_path"));
+                        applicantsWithResumes.getResumes().setResumeFileExtension(allApplicantAndResume.getString("resume_document_extension"));
+                        applicantsWithResumes.getResumes().setResumeFileSize(allApplicantAndResume.getDouble("resume_size"));
 
-                    // Add the object to the list
-                    applicantsWithResumesList.add(applicantsWithResumes);
+                        // Add the object to the list
+                        applicantsWithResumesList.add(applicantsWithResumes);
+                    }
+                    logger.info("Applicants and Resumes List: {}", applicantsWithResumesList);
                 }
-                logger.info("Applicants and Resumes List: " + applicantsWithResumesList);
+            } catch (SQLException e) {
+                logger.error("Error getting applicants and resumes: {}", e.getMessage(), e);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
 
+        } catch (RuntimeException e) {
+            // Handle exceptions thrown by readDataBaseProperties() and loadMySQLJdbcDriver()
+            logger.error("Error loading database properties or JDBC driver: {}", e.getMessage(), e);
+        }
         return applicantsWithResumesList;
     }
 
     public static void DeleteApplicant(int applicantID) {
-        DatabaseProperties databaseProperties = readDataBaseProperties();
 
+        try {
+            DatabaseProperties databaseProperties = readDataBaseProperties();
+
+            loadMySQLJdbcDriver();
+
+            try (Connection connection = DriverManager.getConnection(
+                    databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword())
+            ) {
+
+
+                String deleteApplicantQuery = "DELETE FROM applicant where applicant_id = ?";
+                try (PreparedStatement deleteApplicantStatement = connection.prepareStatement(deleteApplicantQuery)) {
+
+                    deleteApplicantStatement.setInt(1, applicantID);
+
+                    int rowsAffected = deleteApplicantStatement.executeUpdate();
+                    logger.info("{} row(s) affected, applicant_id={} deleted", rowsAffected, applicantID);
+
+                } catch (SQLException e) {
+                    logger.error("Error executing deleteApplicantStatement: {}", e.getMessage(), e);
+
+                }
+            } catch (SQLException e) {
+                logger.error("Error establishing database connection: {}", e.getMessage(), e);
+            }
+        } catch (RuntimeException e) {
+            logger.error("Exception in deleting applicant: {}", e.getMessage(), e);
+        }
+    }
+
+
+    /**
+     * Loads the MySQL JDBC driver. This method should be called
+     * before attempting to establish a connection to a MySQL database.
+     * If the driver is not found, an error is logged using SLF4J.
+     */
+    private static void loadMySQLJdbcDriver() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        try (Connection connection = DriverManager.getConnection(
-                databaseProperties.getUrl(), databaseProperties.getUsername(), databaseProperties.getPassword())
-        ) {
-
-            String deleteApplicantQuery = "DELETE FROM applicant where applicant_id = ?";
-            try (PreparedStatement deleteApplicantStatement = connection.prepareStatement(deleteApplicantQuery)) {
-
-                deleteApplicantStatement.setInt(1, applicantID);
-
-                int rowsAffected = deleteApplicantStatement.executeUpdate();
-                logger.info(rowsAffected + " Row has been affected, applicant_id=" + applicantID + " Has been DELETED");
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("MySQL JDBC driver not found: {}", e.getMessage(), e);
         }
     }
 
@@ -239,7 +248,7 @@ public class DatabaseUtil {
         try (InputStream inputStream = DatabaseUtil.class.getResourceAsStream("/db.properties")) {
             properties.load(inputStream);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Failed to load db.properties: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to load db.properties", e);
         }
 
