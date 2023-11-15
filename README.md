@@ -1,5 +1,5 @@
 # Job_Apply
-A Web Application designed for job seekers that can view and apply for open positions, while HR professionals can efficiently manage applications through an intuitive admin panel.
+A Web Application designed for job seekers that can view and apply for open positions, while HR professionals can efficiently manage applications through an admin panel.
 
 # Job Application Management System
 # Overview:
