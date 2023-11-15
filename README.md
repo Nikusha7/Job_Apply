@@ -11,5 +11,4 @@ manage(get all the applicants information and download their resumes) and evalua
 Run sql script to create database and its tables.
 Specify your database properties in properties file url, username and password. (so that program will connect to your real MySQL db)
 Use intellij to run it on tomcat server.
-
-
+In model package, in Resume class specify folder path where you want to be saved uploaded resumes:  this.resumeFileDirectoryPath = "D:\\IntelliJ Projects\\Job_Apply\\src\\main\\files"; //it is just a demonstration path, change it to your preffered path, since in database i am writting just meta-data of uploaded file, using that meta-data hr will download resumes.
