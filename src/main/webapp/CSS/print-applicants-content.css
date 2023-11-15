@@ -1,0 +1,88 @@
+body {
+    margin: 0;
+    padding: 0;
+    /* Ensuring the body takes at least the full height of the viewport */
+    min-height: 100vh;
+    /* Creating a flex container to structure the layout */
+    display: flex;
+    flex-direction: column;
+}
+
+.content {
+    /* Flex property allows the content area to grow and fill available space */
+    flex: 1;
+    /* Adding a vertical scrollbar if content overflows the container */
+    overflow-y: auto;
+}
+
+/*Style of table where all applicants are displayed*/
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+}
+
+.table thead tr {
+    background-color: #fc671a;
+    color: #ffffff;
+    text-align: left;
+    font-weight: bold;
+}
+
+.table th,
+.table td {
+    padding: 12px 8px;
+    max-width: 155px;
+    word-wrap: break-word;
+}
+
+.table td.email{
+    max-width: 250px;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+/*Styling Download CV to be written in one line*/
+.table tbody td.nowrap {
+    white-space: nowrap;
+}
+
+.table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+.table tbody tr:last-of-type {
+    border-bottom: 2px solid #fc671a;
+}
+
+/*Style of download button for "Download CV"*/
+.download-button {
+    text-decoration: none;
+    background-color: #fc671a;
+    color: #ffffff;
+    border-radius: 5px;
+    padding: 5px 8px;
+}
+
+.download-button:hover {
+    background-color: coral;
+}
+
+/*Style of delete button*/
+.delete-button {
+    background-color: #fc671a;
+    color: #ffffff;
+    border-radius: 5px;
+    padding: 5px 8px;
+    border: none;
+    font-family: none;
+    cursor: pointer;
+}
+
+.delete-button:hover {
+    background-color: coral;
+}
+

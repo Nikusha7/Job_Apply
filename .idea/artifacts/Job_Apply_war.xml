@@ -1,0 +1,14 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="Job_Apply:war">
+    <output-path>$PROJECT_DIR$/target</output-path>
+    <properties id="maven-jee-properties">
+      <options>
+        <module>Job_Apply</module>
+        <packaging>war</packaging>
+      </options>
+    </properties>
+    <root id="archive" name="Job_Apply.war">
+      <element id="artifact" artifact-name="Job_Apply:war exploded" />
+    </root>
+  </artifact>
+</component>

@@ -1,0 +1,55 @@
+/*does not work*/
+.favicon {
+    width: 32px; /* Adjust the size as needed */
+    height: 32px; /* Adjust the size as needed */
+    border-radius: 50%;
+    border: 2px solid red; /* Add a border with a color of your choice */
+}
+
+.header {
+    background-color: white;
+    border-bottom: 2px solid rgba(203, 213, 224);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between; /* Separate the links to the left and right */
+    align-items: center; /* Vertically center the links */
+}
+
+/*Style icon/link on the left side of header*/
+.header-link-left {
+    background-color: white;
+    padding-left: 50px;
+}
+
+/*Style of BOG LOGO*/
+.header-link-left img {
+    max-height: 4rem;
+    max-width: 100%;
+}
+
+/*Style text/link on the right side of header*/
+.header-link-right {
+    color: #fc671a;
+    font-size: 18px;
+    text-decoration: none;
+    text-align: right;
+    padding-right: 65px;
+}
+
+/* Styling the footer at the bottom of the page */
+.footer {
+    /* Making the footer sticky at the bottom of the page */
+    position: sticky;
+    /*bottom: 0;*/
+    /*top: 0;*/
+    /*left: 0;*/
+    /*right: 0;*/
+    background-color: rgba(226, 232, 240);
+    text-align: center;
+    border-top: 2px solid rgba(203, 213, 224);
+    padding: 30px;
+}
+
+.footer p {
+    color: rgba(45, 55, 72);
+}
