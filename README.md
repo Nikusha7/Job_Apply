@@ -7,3 +7,9 @@ The Job Application Management System is a comprehensive web application designe
 This system provides a user-friendly interface for job seekers to view and apply for open positions, while offering recruiters and human resources (HR) professionals a centralized platform to 
 manage(get all the applicants information and download their resumes) and evaluate applicants(delete unwanted applications).
 
+#Usage:
+Run sql script to create database and its tables.
+Specify your database properties in properties file url, username and password. (so that program will connect to your real MySQL db)
+Use intellij to run it on tomcat server.
+
+
